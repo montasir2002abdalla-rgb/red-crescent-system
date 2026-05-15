@@ -18,16 +18,58 @@ app.use(bodyParser.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
 // ===================== إعدادات PostgreSQL =====================
-const pool = new Pool({
-    host: process.env.DB_HOST,
-    port: process.env.DB_PORT || 5432,
-    database: process.env.DB_NAME,
-    user: process.env.DB_USER,
-    password: process.env.DB_PASSWORD,
-    ssl: process.env.DB_SSL === 'require' ? { rejectUnauthorized: false } : false,
-    max: 20,
-    idleTimeoutMillis: 30000,
-    connectionTimeoutMillis: 20000,
+// ===================== إعدادات PostgreSQL =====================
+// دعم DATABASE_URL من Render والمتغيرات المنفصلة
+let poolConfig;
+
+if (process.env.DATABASE_URL) {
+    poolConfig = {
+        connectionString: process.env.DATABASE_URL,
+        ssl: process.env.DB_SSL === 'require' ? { rejectUnauthorized: false } : false,
+        max: 10,
+        idleTimeoutMillis: 30000,
+        connectionTimeoutMillis: 10000,
+    };
+    console.log('✅ استخدام DATABASE_URL للاتصال بقاعدة البيانات');
+} else {
+    poolConfig = {
+        host: process.env.DB_HOST || 'localhost',
+        port: process.env.DB_PORT || 5432,
+        database: process.env.DB_NAME || 'red_crescent_db',
+        user: process.env.DB_USER || 'postgres',
+        password: process.env.DB_PASSWORD || '',
+        ssl: process.env.DB_SSL === 'require' ? { rejectUnauthorized: false } : false,
+        max: 10,
+        idleTimeoutMillis: 30000,
+        connectionTimeoutMillis: 10000,
+    };
+    console.log('✅ استخدام المتغيرات المنفصلة للاتصال بقاعدة البيانات');
+}
+
+const pool = new Pool(poolConfig);
+
+// تحسين اختبار الاتصال مع رسائل أوضح
+pool.connect((err, client, release) => {
+    if (err) {
+        console.error('❌ فشل الاتصال بقاعدة البيانات:', err.message);
+        console.error('⚠️ تأكد من صحة متغيرات البيئة: DATABASE_URL أو (DB_HOST, DB_NAME, DB_USER, DB_PASSWORD)');
+        console.log('⚠️ سيتم إعادة المحاولة بعد 10 ثوان...');
+        setTimeout(() => {
+            pool.connect((err2, client2, release2) => {
+                if (err2) {
+                    console.error('❌ فشل الاتصال مرة أخرى:', err2.message);
+                } else {
+                    console.log('✅ تم الاتصال بقاعدة البيانات بنجاح بعد إعادة المحاولة');
+                    release2();
+                    initDatabase();
+                }
+            });
+        }, 10000);
+    } else {
+        console.log('✅ تم الاتصال بقاعدة بيانات PostgreSQL بنجاح');
+        release();
+        initDatabase();
+    }
 });
 
 // اختبار الاتصال بقاعدة البيانات
