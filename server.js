@@ -46,37 +46,14 @@ if (process.env.DATABASE_URL) {
 
 const pool = new Pool(poolConfig);
 
-// اختبار الاتصال بقاعدة البيانات
-pool.connect(async (err, client, release) => {
-    if (err) {
-        console.error('❌ خطأ في الاتصال بقاعدة البيانات PostgreSQL:', err.message);
-        console.log('⚠️ سيتم إعادة المحاولة بعد 10 ثوان...');
-        setTimeout(() => {
-            pool.connect(async (err2, client2, release2) => {
-                if (err2) {
-                    console.error('❌ فشل الاتصال مرة أخرى:', err2.message);
-                } else {
-                    console.log('✅ تم الاتصال بقاعدة البيانات بنجاح بعد إعادة المحاولة');
-                    release2();
-                    await initDatabase();
-                }
-            });
-        }, 10000);
-    } else {
-        console.log('✅ تم الاتصال بقاعدة بيانات PostgreSQL بنجاح');
-        release();
-        await initDatabase();
-    }
-});
-
 // ===================== إعدادات البريد الإلكتروني =====================
 const emailTransporter = nodemailer.createTransport({
     host: process.env.SMTP_HOST || 'smtp.gmail.com',
     port: parseInt(process.env.SMTP_PORT) || 587,
     secure: process.env.SMTP_SECURE === 'true',
     auth: {
-        user: process.env.EMAIL_USER || 'red1956hilal@gmail.com',
-        pass: process.env.EMAIL_PASS || '0909202260mont'
+        user: process.env.EMAIL_USER || '',
+        pass: process.env.EMAIL_PASS || ''
     }
 });
 
@@ -86,7 +63,6 @@ emailTransporter.verify((error, success) => {
         console.error('❌ خطأ في إعدادات البريد الإلكتروني:', error.message);
     } else {
         console.log('✅ تم إعداد البريد الإلكتروني بنجاح');
-        console.log(`📧 البريد المرسل: ${process.env.EMAIL_USER || 'red1956hilal@gmail.com'}`);
     }
 });
 
@@ -106,8 +82,13 @@ function generateResetToken() {
 
 async function sendEmail(to, subject, html) {
     try {
+        if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
+            console.log('⚠️ لم يتم تكوين البريد الإلكتروني. سيتم عرض الرمز في السجل فقط.');
+            return false;
+        }
+        
         const info = await emailTransporter.sendMail({
-            from: `"جمعية الهلال الأحمر" <${process.env.EMAIL_USER || 'red1956hilal@gmail.com'}>`,
+            from: `"جمعية الهلال الأحمر" <${process.env.EMAIL_USER}>`,
             to: to,
             subject: subject,
             html: html
@@ -116,7 +97,6 @@ async function sendEmail(to, subject, html) {
         return true;
     } catch (error) {
         console.error('❌ خطأ في إرسال البريد:', error.message);
-        console.log('⚠️ سيتم عرض رمز التحقق في السجل للتجربة');
         return false;
     }
 }
@@ -482,6 +462,7 @@ async function initDatabase() {
         console.log('✅ تم إدخال بيانات المخازن الافتراضية');
 
         // ===================== المستخدمون الافتراضيون =====================
+        // مدير النظام (employeeId: 0001)
         const adminExists = await pool.query(`SELECT id FROM users WHERE employeeId = $1`, ['0001']);
         if (adminExists.rows.length === 0) {
             await pool.query(`
@@ -489,8 +470,12 @@ async function initDatabase() {
                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
             `, ['0001', 'مدير النظام', 'admin@redcrescent.org', '0912345678', hashPassword('admin123'), 'manager', 'active', 1, new Date().toISOString().split('T')[0], 'male', 1]);
             console.log('✅ تم إضافة المستخدم الافتراضي: مدير النظام');
+        } else {
+            await pool.query(`UPDATE users SET email_verified = 1, status = 'active', approved = 1 WHERE employeeId = '0001'`);
+            console.log('✅ تم تحديث المدير: تأكيد البريد وتفعيل الحساب');
         }
 
+        // أمين المخزن (employeeId: 0002)
         const keeperExists = await pool.query(`SELECT id FROM users WHERE employeeId = $1`, ['0002']);
         if (keeperExists.rows.length === 0) {
             await pool.query(`
@@ -498,28 +483,44 @@ async function initDatabase() {
                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
             `, ['0002', 'أمين المخزن', 'keeper@redcrescent.org', '0912345679', hashPassword('keeper123'), 'inventory_keeper', 'active', 1, new Date().toISOString().split('T')[0], 'male', 1]);
             console.log('✅ تم إضافة المستخدم الافتراضي: أمين المخزن');
-        }
-
-        // ===================== تأكيد البريد الإلكتروني للمستخدمين الافتراضيين =====================
-        try {
-            const updateResult = await pool.query(`
-                UPDATE users SET email_verified = 1 
-                WHERE employeeId IN ('0001', '0002') AND email_verified = 0
-            `);
-            if (updateResult.rowCount > 0) {
-                console.log(`✅ تم تأكيد البريد الإلكتروني لـ ${updateResult.rowCount} مستخدم افتراضي`);
-            } else {
-                console.log('✅ المستخدمون الافتراضيون لديهم بريد مؤكد بالفعل');
-            }
-        } catch (err) {
-            console.error('❌ خطأ في تحديث المستخدمين الافتراضيين:', err.message);
+        } else {
+            await pool.query(`UPDATE users SET email_verified = 1, status = 'active', approved = 1 WHERE employeeId = '0002'`);
+            console.log('✅ تم تحديث أمين المخزن: تأكيد البريد وتفعيل الحساب');
         }
 
         console.log('🎉 تم تهيئة قاعدة البيانات بالكامل بنجاح!');
+        console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+        console.log('🔐 بيانات تسجيل الدخول:');
+        console.log('   مدير النظام: رقم الموظف: 0001 | كلمة المرور: admin123');
+        console.log('   أمين المخزن: رقم الموظف: 0002 | كلمة المرور: keeper123');
+        console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
     } catch (err) {
         console.error('❌ خطأ في تهيئة قاعدة البيانات:', err.message);
     }
 }
+
+// اختبار الاتصال بقاعدة البيانات
+pool.connect(async (err, client, release) => {
+    if (err) {
+        console.error('❌ خطأ في الاتصال بقاعدة البيانات PostgreSQL:', err.message);
+        console.log('⚠️ سيتم إعادة المحاولة بعد 10 ثوان...');
+        setTimeout(() => {
+            pool.connect(async (err2, client2, release2) => {
+                if (err2) {
+                    console.error('❌ فشل الاتصال مرة أخرى:', err2.message);
+                } else {
+                    console.log('✅ تم الاتصال بقاعدة البيانات بنجاح بعد إعادة المحاولة');
+                    release2();
+                    await initDatabase();
+                }
+            });
+        }, 10000);
+    } else {
+        console.log('✅ تم الاتصال بقاعدة بيانات PostgreSQL بنجاح');
+        release();
+        await initDatabase();
+    }
+});
 
 // ===================== Middleware =====================
 const authenticateToken = (req, res, next) => {
@@ -544,7 +545,6 @@ const requireInventoryAccess = (req, res, next) => {
 
 // ===================== مسارات التحقق من البريد الإلكتروني =====================
 
-// إرسال رمز التحقق
 app.post('/api/send-verification-code', async (req, res) => {
     const { email, role } = req.body;
     
@@ -592,11 +592,12 @@ app.post('/api/send-verification-code', async (req, res) => {
         `;
         
         const sent = await sendEmail(email, 'رمز التحقق - جمعية الهلال الأحمر', emailHtml);
+        console.log(`📱 رمز التحقق لـ ${email}: ${code}`);
         
         if (sent) {
             res.json({ message: 'تم إرسال رمز التحقق إلى بريدك الإلكتروني' });
         } else {
-            res.status(500).json({ error: 'فشل إرسال البريد. يرجى المحاولة لاحقاً' });
+            res.json({ message: 'لم نتمكن من إرسال البريد. تم حفظ الرمز في سجل الخادم.', devCode: code });
         }
     } catch (err) {
         console.error('خطأ في إرسال رمز التحقق:', err);
@@ -604,7 +605,6 @@ app.post('/api/send-verification-code', async (req, res) => {
     }
 });
 
-// التحقق من الرمز
 app.post('/api/verify-code', (req, res) => {
     const { email, code } = req.body;
     
@@ -632,7 +632,6 @@ app.post('/api/verify-code', (req, res) => {
     res.json({ message: 'تم التحقق بنجاح! يمكنك إكمال التسجيل' });
 });
 
-// إعادة إرسال رمز التحقق
 app.post('/api/resend-verification', async (req, res) => {
     const { email } = req.body;
     
@@ -674,11 +673,12 @@ app.post('/api/resend-verification', async (req, res) => {
         `;
         
         const sent = await sendEmail(email, 'إعادة إرسال رمز التحقق - جمعية الهلال الأحمر', emailHtml);
+        console.log(`📱 إعادة إرسال رمز التحقق لـ ${email}: ${code}`);
         
         if (sent) {
             res.json({ message: 'تم إعادة إرسال رمز التحقق إلى بريدك الإلكتروني' });
         } else {
-            res.status(500).json({ error: 'فشل إرسال البريد. يرجى المحاولة لاحقاً' });
+            res.json({ message: 'لم نتمكن من إرسال البريد. الرمز: ' + code, devCode: code });
         }
     } catch (err) {
         console.error('خطأ في إعادة إرسال رمز التحقق:', err);
@@ -686,7 +686,7 @@ app.post('/api/resend-verification', async (req, res) => {
     }
 });
 
-// ===================== مسار التسجيل الجديد =====================
+// ===================== مسار التسجيل =====================
 app.post('/api/register', async (req, res) => {
     const {
         employeeId, name, email, phone, password, role,
@@ -805,11 +805,26 @@ app.post('/api/auth/login', async (req, res) => {
             return res.status(401).json({ error: 'الرقم الوظيفي أو كلمة المرور غير صحيحة' });
         }
         
-        if (user.status !== 'active') {
-            return res.status(403).json({ error: 'الحساب غير مفعل بعد' });
+        // ✅ للمستخدمين الافتراضيين - تأكد من تفعيل الحساب تلقائياً
+        if (user.employeeId === '0001' || user.employeeId === '0002') {
+            if (user.status !== 'active') {
+                await pool.query(`UPDATE users SET status = 'active', approved = 1, email_verified = 1 WHERE id = $1`, [user.id]);
+                user.status = 'active';
+                user.approved = 1;
+                user.email_verified = 1;
+                console.log(`✅ تم تفعيل حساب ${user.name} تلقائياً`);
+            }
+            if (!user.email_verified) {
+                await pool.query(`UPDATE users SET email_verified = 1 WHERE id = $1`, [user.id]);
+                user.email_verified = 1;
+            }
         }
         
-        if (!user.email_verified) {
+        if (user.status !== 'active') {
+            return res.status(403).json({ error: 'الحساب غير مفعل بعد. يرجى الانتظار حتى موافقة المدير.' });
+        }
+        
+        if (!user.email_verified && user.employeeId !== '0001' && user.employeeId !== '0002') {
             return res.status(403).json({ error: 'يرجى تأكيد بريدك الإلكتروني أولاً', requiresVerification: true, email: user.email });
         }
         
@@ -868,7 +883,6 @@ app.post('/api/auth/change-password', authenticateToken, async (req, res) => {
 
 // ===================== مسارات "نسيت كلمة السر" =====================
 
-// جلب بيانات الموقع للمستخدم
 app.post('/api/get-user-location', async (req, res) => {
     const { email } = req.body;
     
@@ -896,7 +910,6 @@ app.post('/api/get-user-location', async (req, res) => {
     }
 });
 
-// طلب إعادة تعيين كلمة المرور مع التحقق بالولاية والمحلية
 app.post('/api/forgot-password', async (req, res) => {
     const { email, state, city } = req.body;
     
@@ -976,7 +989,6 @@ app.post('/api/forgot-password', async (req, res) => {
     }
 });
 
-// التحقق من صحة رمز إعادة التعيين
 app.post('/api/verify-reset-token', async (req, res) => {
     const { email, token } = req.body;
     
@@ -998,7 +1010,6 @@ app.post('/api/verify-reset-token', async (req, res) => {
     }
 });
 
-// إعادة تعيين كلمة المرور
 app.post('/api/reset-password', async (req, res) => {
     const { email, token, newPassword } = req.body;
     
@@ -1563,6 +1574,28 @@ app.get('/api/financial-transactions', authenticateToken, requireInventoryAccess
     }
 });
 
+app.put('/api/financial-transactions/:id', authenticateToken, requireManager, async (req, res) => {
+    const { amount, description, type } = req.body;
+    try {
+        await pool.query(
+            `UPDATE financial_transactions SET amount = $1, description = $2, type = $3 WHERE id = $4`,
+            [amount, description, type, req.params.id]
+        );
+        res.json({ message: 'تم التحديث' });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.delete('/api/financial-transactions/:id', authenticateToken, requireManager, async (req, res) => {
+    try {
+        await pool.query(`DELETE FROM financial_transactions WHERE id = $1`, [req.params.id]);
+        res.json({ message: 'تم الحذف' });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
 // ===================== مسارات المستفيدين =====================
 app.get('/api/beneficiaries', authenticateToken, async (req, res) => {
     try {
@@ -1811,7 +1844,11 @@ app.put('/api/logistics/:id', authenticateToken, async (req, res) => {
 app.listen(PORT, () => {
     console.log(`\n🚀 ========================================`);
     console.log(`🚀 الخادم يعمل على http://localhost:${PORT}`);
-    console.log(`📧 البريد الإلكتروني: ${process.env.EMAIL_USER || 'red1956hilal@gmail.com'}`);
     console.log(`🗄️ قاعدة البيانات: PostgreSQL`);
     console.log(`========================================\n`);
+    console.log(`🔐 بيانات تسجيل الدخول للمستخدمين الافتراضيين:`);
+    console.log(`   ┌─────────────────────────────────────────────────┐`);
+    console.log(`   │  مدير النظام  │  0001  │  admin123  │  manager  │`);
+    console.log(`   │  أمين المخزن  │  0002  │  keeper123 │  keeper   │`);
+    console.log(`   └─────────────────────────────────────────────────┘`);
 });
