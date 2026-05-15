@@ -18,8 +18,6 @@ app.use(bodyParser.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
 // ===================== إعدادات PostgreSQL =====================
-// ===================== إعدادات PostgreSQL =====================
-// دعم DATABASE_URL من Render والمتغيرات المنفصلة
 let poolConfig;
 
 if (process.env.DATABASE_URL) {
@@ -48,34 +46,22 @@ if (process.env.DATABASE_URL) {
 
 const pool = new Pool(poolConfig);
 
-// تحسين اختبار الاتصال مع رسائل أوضح
-pool.connect((err, client, release) => {
+// اختبار الاتصال بقاعدة البيانات
+pool.connect(async (err, client, release) => {
     if (err) {
-        console.error('❌ فشل الاتصال بقاعدة البيانات:', err.message);
-        console.error('⚠️ تأكد من صحة متغيرات البيئة: DATABASE_URL أو (DB_HOST, DB_NAME, DB_USER, DB_PASSWORD)');
+        console.error('❌ خطأ في الاتصال بقاعدة البيانات PostgreSQL:', err.message);
         console.log('⚠️ سيتم إعادة المحاولة بعد 10 ثوان...');
         setTimeout(() => {
-            pool.connect((err2, client2, release2) => {
+            pool.connect(async (err2, client2, release2) => {
                 if (err2) {
                     console.error('❌ فشل الاتصال مرة أخرى:', err2.message);
                 } else {
                     console.log('✅ تم الاتصال بقاعدة البيانات بنجاح بعد إعادة المحاولة');
                     release2();
-                    initDatabase();
+                    await initDatabase();
                 }
             });
         }, 10000);
-    } else {
-        console.log('✅ تم الاتصال بقاعدة بيانات PostgreSQL بنجاح');
-        release();
-        initDatabase();
-    }
-});
-
-// اختبار الاتصال بقاعدة البيانات
-pool.connect(async (err, client, release) => {
-    if (err) {
-        console.error('❌ خطأ في الاتصال بقاعدة البيانات PostgreSQL:', err.message);
     } else {
         console.log('✅ تم الاتصال بقاعدة بيانات PostgreSQL بنجاح');
         release();
@@ -130,6 +116,7 @@ async function sendEmail(to, subject, html) {
         return true;
     } catch (error) {
         console.error('❌ خطأ في إرسال البريد:', error.message);
+        console.log('⚠️ سيتم عرض رمز التحقق في السجل للتجربة');
         return false;
     }
 }
@@ -450,7 +437,7 @@ async function initDatabase() {
             { name: "غرب دارفور", localities: ["الجنينة", "سراف عمرة", "حبيبيلة", "بندسي", "كرينك"] },
             { name: "وسط دارفور", localities: ["زالنجي", "بندقو", "وادي صالح", "أزوم", "روكرو"] },
             { name: "شمال كردفان", localities: ["الأبيض", "سودري", "برام", "شيكان", "أم روابة"] },
-            { name: "جنوب كردفан", localities: ["كادوقلي", "أبو جبيهة", "تلودي", "الدلنج", "رشاد"] },
+            { name: "جنوب كردفان", localities: ["كادوقلي", "أبو جبيهة", "تلودي", "الدلنج", "رشاد"] },
             { name: "غرب كردفان", localities: ["النهود", "كيليك", "الأبيض الجديدة", "بابانوسة", "لجين"] },
             { name: "النيل الأبيض", localities: ["ربك", "كوستي", "الجزيرة أبا", "القوتة", "الدويم"] },
             { name: "النيل الأزرق", localities: ["الدمازين", "باو", "القيسان", "الروصيرص", "تادامون"] },
@@ -495,39 +482,44 @@ async function initDatabase() {
         console.log('✅ تم إدخال بيانات المخازن الافتراضية');
 
         // ===================== المستخدمون الافتراضيون =====================
-// ===================== المستخدمون الافتراضيون =====================
-try {
-    // مدير النظام
-    const adminExists = await pool.query(`SELECT id FROM users WHERE employeeId = $1`, ['0001']);
-    if (adminExists.rows.length === 0) {
-        await pool.query(`
-            INSERT INTO users (employeeId, name, email, phone, password, role, status, approved, joinDate, gender, email_verified)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
-        `, ['0001', 'مدير النظام', 'admin@redcrescent.org', '0912345678', hashPassword('admin123'), 'manager', 'active', 1, new Date().toISOString().split('T')[0], 'male', 1]);
-        console.log('✅ تم إضافة المستخدم الافتراضي: مدير النظام');
-    }
+        const adminExists = await pool.query(`SELECT id FROM users WHERE employeeId = $1`, ['0001']);
+        if (adminExists.rows.length === 0) {
+            await pool.query(`
+                INSERT INTO users (employeeId, name, email, phone, password, role, status, approved, joinDate, gender, email_verified)
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+            `, ['0001', 'مدير النظام', 'admin@redcrescent.org', '0912345678', hashPassword('admin123'), 'manager', 'active', 1, new Date().toISOString().split('T')[0], 'male', 1]);
+            console.log('✅ تم إضافة المستخدم الافتراضي: مدير النظام');
+        }
 
-    // أمين المخزن
-    const keeperExists = await pool.query(`SELECT id FROM users WHERE employeeId = $1`, ['0002']);
-    if (keeperExists.rows.length === 0) {
-        await pool.query(`
-            INSERT INTO users (employeeId, name, email, phone, password, role, status, approved, joinDate, gender, email_verified)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
-        `, ['0002', 'أمين المخزن', 'keeper@redcrescent.org', '0912345679', hashPassword('keeper123'), 'inventory_keeper', 'active', 1, new Date().toISOString().split('T')[0], 'male', 1]);
-        console.log('✅ تم إضافة المستخدم الافتراضي: أمين المخزن');
-    }
+        const keeperExists = await pool.query(`SELECT id FROM users WHERE employeeId = $1`, ['0002']);
+        if (keeperExists.rows.length === 0) {
+            await pool.query(`
+                INSERT INTO users (employeeId, name, email, phone, password, role, status, approved, joinDate, gender, email_verified)
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+            `, ['0002', 'أمين المخزن', 'keeper@redcrescent.org', '0912345679', hashPassword('keeper123'), 'inventory_keeper', 'active', 1, new Date().toISOString().split('T')[0], 'male', 1]);
+            console.log('✅ تم إضافة المستخدم الافتراضي: أمين المخزن');
+        }
 
-    // ✅ مهم جداً: تأكيد البريد الإلكتروني للمستخدمين الافتراضيين (حتى لو كانوا موجودين)
-    const updateResult = await pool.query(`UPDATE users SET email_verified = 1 WHERE employeeId IN ('0001', '0002') AND email_verified = 0`);
-    if (updateResult.rowCount > 0) {
-        console.log(`✅ تم تأكيد البريد الإلكتروني لـ ${updateResult.rowCount} مستخدم افتراضي`);
-    } else {
-        console.log('✅ المستخدمون الافتراضيون لديهم بريد مؤكد بالفعل');
+        // ===================== تأكيد البريد الإلكتروني للمستخدمين الافتراضيين =====================
+        try {
+            const updateResult = await pool.query(`
+                UPDATE users SET email_verified = 1 
+                WHERE employeeId IN ('0001', '0002') AND email_verified = 0
+            `);
+            if (updateResult.rowCount > 0) {
+                console.log(`✅ تم تأكيد البريد الإلكتروني لـ ${updateResult.rowCount} مستخدم افتراضي`);
+            } else {
+                console.log('✅ المستخدمون الافتراضيون لديهم بريد مؤكد بالفعل');
+            }
+        } catch (err) {
+            console.error('❌ خطأ في تحديث المستخدمين الافتراضيين:', err.message);
+        }
+
+        console.log('🎉 تم تهيئة قاعدة البيانات بالكامل بنجاح!');
+    } catch (err) {
+        console.error('❌ خطأ في تهيئة قاعدة البيانات:', err.message);
     }
-} catch (err) {
-    console.error('❌ خطأ في إعداد المستخدمين الافتراضيين:', err.message);
 }
-
 
 // ===================== Middleware =====================
 const authenticateToken = (req, res, next) => {
