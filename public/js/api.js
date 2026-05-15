@@ -1,16 +1,10 @@
 async function handleResponse(response) {
-    const contentType = response.headers.get('content-type');
-    if (!contentType || !contentType.includes('application/json')) {
-        const text = await response.text();
-        console.error('Response is not JSON:', text.substring(0, 200));
-        throw new Error(`خطأ في الخادم (${response.status}) - تأكد من اتصالك بالخادم`);
-    }
     const data = await response.json();
     if (!response.ok) throw new Error(data.error || 'حدث خطأ');
     return data;
 }
 
-// ==================== دوال المصادقة (Auth) ====================
+// المصادقة
 async function login(employeeId, password) {
     const res = await fetch('/api/auth/login', {
         method: 'POST',
@@ -42,7 +36,7 @@ async function changePassword(oldPassword, newPassword) {
     return handleResponse(res);
 }
 
-// ==================== دوال المستخدمين (Users) ====================
+// المستخدمين
 async function getAllUsers() {
     const token = localStorage.getItem('token');
     const res = await fetch('/api/users', {
@@ -107,10 +101,20 @@ async function updateUser(id, data) {
     return handleResponse(res);
 }
 
-// ==================== دوال المخزون (Inventory) ====================
+// المخزون
 async function getInventory() {
     const token = localStorage.getItem('token');
     const res = await fetch('/api/inventory', {
+        headers: { 'Authorization': `Bearer ${token}` }
+    });
+    return handleResponse(res);
+}
+
+async function getAvailableInventory(warehouseId) {
+    const token = localStorage.getItem('token');
+    let url = '/api/inventory/available';
+    if (warehouseId) url += `?warehouse_id=${warehouseId}`;
+    const res = await fetch(url, {
         headers: { 'Authorization': `Bearer ${token}` }
     });
     return handleResponse(res);
@@ -151,17 +155,13 @@ async function deleteInventoryItem(id) {
     return handleResponse(res);
 }
 
-// ==================== دوال التبرعات (Donations) ====================
+// التبرعات
 async function getDonations() {
     const token = localStorage.getItem('token');
     const res = await fetch('/api/donations', {
         headers: { 'Authorization': `Bearer ${token}` }
     });
     return handleResponse(res);
-}
-
-async function getUserDonations() {
-    return getDonations();
 }
 
 async function createDonation(data) {
@@ -177,7 +177,28 @@ async function createDonation(data) {
     return handleResponse(res);
 }
 
-// ==================== دوال المصروفات (Expenses) ====================
+async function createInkindDonation(data) {
+    const token = localStorage.getItem('token');
+    const res = await fetch('/api/inkind-donations', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(data)
+    });
+    return handleResponse(res);
+}
+
+// المعاملات المالية
+async function getFinancialTransactions() {
+    const token = localStorage.getItem('token');
+    const res = await fetch('/api/financial-transactions', {
+        headers: { 'Authorization': `Bearer ${token}` }
+    });
+    return handleResponse(res);
+}
+
 async function createExpense(data) {
     const token = localStorage.getItem('token');
     const res = await fetch('/api/expenses', {
@@ -191,16 +212,7 @@ async function createExpense(data) {
     return handleResponse(res);
 }
 
-// ==================== دوال المعاملات المالية (Financial Transactions) ====================
-async function getFinancialTransactions() {
-    const token = localStorage.getItem('token');
-    const res = await fetch('/api/financial-transactions', {
-        headers: { 'Authorization': `Bearer ${token}` }
-    });
-    return handleResponse(res);
-}
-
-// ==================== دوال المستفيدين (Beneficiaries) ====================
+// المستفيدين
 async function getBeneficiaries() {
     const token = localStorage.getItem('token');
     const res = await fetch('/api/beneficiaries', {
@@ -244,7 +256,7 @@ async function deleteBeneficiary(id) {
     return handleResponse(res);
 }
 
-// ==================== دوال طلبات المساعدة (Assistance Requests) ====================
+// طلبات المساعدة
 async function getAssistanceRequests() {
     const token = localStorage.getItem('token');
     const res = await fetch('/api/assistance-requests', {
@@ -288,77 +300,7 @@ async function deleteAssistanceRequest(id) {
     return handleResponse(res);
 }
 
-// ==================== دوال فرق الطوارئ (Emergency Teams) ====================
-async function getEmergencyTeams() {
-    const token = localStorage.getItem('token');
-    const res = await fetch('/api/emergency-teams', {
-        headers: { 'Authorization': `Bearer ${token}` }
-    });
-    return handleResponse(res);
-}
-
-async function createEmergencyTeam(data) {
-    const token = localStorage.getItem('token');
-    const res = await fetch('/api/emergency-teams', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify(data)
-    });
-    return handleResponse(res);
-}
-
-async function updateEmergencyTeam(id, data) {
-    const token = localStorage.getItem('token');
-    const res = await fetch(`/api/emergency-teams/${id}`, {
-        method: 'PUT',
-        headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify(data)
-    });
-    return handleResponse(res);
-}
-
-// ==================== دوال اللوجستيات (Logistics) ====================
-async function getLogistics() {
-    const token = localStorage.getItem('token');
-    const res = await fetch('/api/logistics', {
-        headers: { 'Authorization': `Bearer ${token}` }
-    });
-    return handleResponse(res);
-}
-
-async function createLogistics(data) {
-    const token = localStorage.getItem('token');
-    const res = await fetch('/api/logistics', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify(data)
-    });
-    return handleResponse(res);
-}
-
-async function updateLogistics(id, data) {
-    const token = localStorage.getItem('token');
-    const res = await fetch(`/api/logistics/${id}`, {
-        method: 'PUT',
-        headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify(data)
-    });
-    return handleResponse(res);
-}
-
-// ==================== دوال السجلات الصحية (Health Records) ====================
+// السجلات الصحية
 async function getHealthRecords(beneficiaryId) {
     const token = localStorage.getItem('token');
     const res = await fetch(`/api/health-records/${beneficiaryId}`, {
@@ -402,7 +344,7 @@ async function deleteHealthRecord(id) {
     return handleResponse(res);
 }
 
-// ==================== دوال الشكاوى والتنبيهات (Complaints) ====================
+// الشكاوى والإشعارات
 async function getComplaints() {
     const token = localStorage.getItem('token');
     const res = await fetch('/api/complaints', {
@@ -442,7 +384,7 @@ async function deleteComplaint(id) {
     return handleResponse(res);
 }
 
-// ==================== دوال الإحصائيات (Stats) ====================
+// الإحصائيات
 async function getStats() {
     const token = localStorage.getItem('token');
     const res = await fetch('/api/stats', {
@@ -450,6 +392,124 @@ async function getStats() {
     });
     return handleResponse(res);
 }
+
+// فرق الطوارئ
+async function getEmergencyTeams() {
+    const token = localStorage.getItem('token');
+    const res = await fetch('/api/emergency-teams', {
+        headers: { 'Authorization': `Bearer ${token}` }
+    });
+    return handleResponse(res);
+}
+
+async function createEmergencyTeam(data) {
+    const token = localStorage.getItem('token');
+    const res = await fetch('/api/emergency-teams', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(data)
+    });
+    return handleResponse(res);
+}
+
+async function updateEmergencyTeam(id, data) {
+    const token = localStorage.getItem('token');
+    const res = await fetch(`/api/emergency-teams/${id}`, {
+        method: 'PUT',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(data)
+    });
+    return handleResponse(res);
+}
+
+// اللوجستيات
+async function getLogistics() {
+    const token = localStorage.getItem('token');
+    const res = await fetch('/api/logistics', {
+        headers: { 'Authorization': `Bearer ${token}` }
+    });
+    return handleResponse(res);
+}
+
+async function createLogistics(data) {
+    const token = localStorage.getItem('token');
+    const res = await fetch('/api/logistics', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(data)
+    });
+    return handleResponse(res);
+}
+
+async function updateLogistics(id, data) {
+    const token = localStorage.getItem('token');
+    const res = await fetch(`/api/logistics/${id}`, {
+        method: 'PUT',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(data)
+    });
+    return handleResponse(res);
+}
+// دوال إضافية مفقودة
+async function getUserDonations() {
+    const token = localStorage.getItem('token');
+    const res = await fetch('/api/donations', {
+        headers: { 'Authorization': `Bearer ${token}` }
+    });
+    return handleResponse(res);
+}
+
+async function deleteFinancialTransaction(id) {
+    const token = localStorage.getItem('token');
+    const res = await fetch(`/api/financial-transactions/${id}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}` }
+    });
+    return handleResponse(res);
+}
+
+async function updateFinancialTransaction(id, data) {
+    const token = localStorage.getItem('token');
+    const res = await fetch(`/api/financial-transactions/${id}`, {
+        method: 'PUT',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(data)
+    });
+    return handleResponse(res);
+}
+// دوال إضافية مفقودة
+async function getUserDonations() {
+    const token = localStorage.getItem('token');
+    const res = await fetch('/api/donations', {
+        headers: { 'Authorization': `Bearer ${token}` }
+    });
+    return handleResponse(res);
+}
+
+async function deleteFinancialTransaction(id) {
+    const token = localStorage.getItem('token');
+    const res = await fetch(`/api/financial-transactions/${id}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}` }
+    });
+    return handleResponse(res);
+}
+
 async function updateFinancialTransaction(id, data) {
     const token = localStorage.getItem('token');
     const res = await fetch(`/api/financial-transactions/${id}`, {
@@ -463,38 +523,18 @@ async function updateFinancialTransaction(id, data) {
     return handleResponse(res);
 }
 
-async function deleteFinancialTransaction(id) {
-    const token = localStorage.getItem('token');
-    const res = await fetch(`/api/financial-transactions/${id}`, {
-        method: 'DELETE',
-        headers: { 'Authorization': `Bearer ${token}` }
-    });
-    return handleResponse(res);
-}
-// في نهاية api.js، أضف إذا لم تكن موجودة:
-async function createExpense(data) {
-    const token = localStorage.getItem('token');
-    const res = await fetch('/api/expenses', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify(data)
-    });
-    return handleResponse(res);
-}
-
-// تأكد من وجود الدوال التالية أيضاً:
-window.createExpense = createExpense;
-
-window.updateFinancialTransaction = updateFinancialTransaction;
+// إضافة الدوال الجديدة إلى window
+window.getUserDonations = getUserDonations;
 window.deleteFinancialTransaction = deleteFinancialTransaction;
-// ==================== تصدير الدوال إلى النطاق العام ====================
+window.updateFinancialTransaction = updateFinancialTransaction;
+// إضافة الدوال الجديدة إلى window
+window.getUserDonations = getUserDonations;
+window.deleteFinancialTransaction = deleteFinancialTransaction;
+window.updateFinancialTransaction = updateFinancialTransaction;
+// تصدير الدوال للنطاق العام
 window.login = login;
 window.register = register;
 window.changePassword = changePassword;
-
 window.getAllUsers = getAllUsers;
 window.getPendingUsers = getPendingUsers;
 window.getActiveUsers = getActiveUsers;
@@ -502,45 +542,36 @@ window.approveUser = approveUser;
 window.rejectUser = rejectUser;
 window.deleteUser = deleteUser;
 window.updateUser = updateUser;
-
 window.getInventory = getInventory;
+window.getAvailableInventory = getAvailableInventory;
 window.addInventoryItem = addInventoryItem;
 window.updateInventoryItem = updateInventoryItem;
 window.deleteInventoryItem = deleteInventoryItem;
-
 window.getDonations = getDonations;
-window.getUserDonations = getUserDonations;
 window.createDonation = createDonation;
-
-window.createExpense = createExpense;
+window.createInkindDonation = createInkindDonation;
 window.getFinancialTransactions = getFinancialTransactions;
-
+window.createExpense = createExpense;
 window.getBeneficiaries = getBeneficiaries;
 window.createBeneficiary = createBeneficiary;
 window.updateBeneficiary = updateBeneficiary;
 window.deleteBeneficiary = deleteBeneficiary;
-
 window.getAssistanceRequests = getAssistanceRequests;
 window.createAssistanceRequest = createAssistanceRequest;
 window.updateAssistanceRequestStatus = updateAssistanceRequestStatus;
 window.deleteAssistanceRequest = deleteAssistanceRequest;
-
-window.getEmergencyTeams = getEmergencyTeams;
-window.createEmergencyTeam = createEmergencyTeam;
-window.updateEmergencyTeam = updateEmergencyTeam;
-
-window.getLogistics = getLogistics;
-window.createLogistics = createLogistics;
-window.updateLogistics = updateLogistics;
-
 window.getHealthRecords = getHealthRecords;
 window.createHealthRecord = createHealthRecord;
 window.updateHealthRecord = updateHealthRecord;
 window.deleteHealthRecord = deleteHealthRecord;
-
 window.getComplaints = getComplaints;
 window.createComplaint = createComplaint;
 window.markComplaintAsRead = markComplaintAsRead;
 window.deleteComplaint = deleteComplaint;
-
 window.getStats = getStats;
+window.getEmergencyTeams = getEmergencyTeams;
+window.createEmergencyTeam = createEmergencyTeam;
+window.updateEmergencyTeam = updateEmergencyTeam;
+window.getLogistics = getLogistics;
+window.createLogistics = createLogistics;
+window.updateLogistics = updateLogistics;

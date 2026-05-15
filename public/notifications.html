@@ -14,53 +14,25 @@
             <div class="logo-small"><div class="crescent"></div></div>
             <h2>التنبيهات والشكاوى</h2>
         </div>
-        <div class="header-center"></div>
-        <div class="header-right">
-            <span id="userName">...</span>
-        </div>
+        <div class="header-right"><span id="userName">...</span></div>
     </header>
-
-    <div class="container" style="margin-top: 20px;">
+    <div class="container" style="margin-top:80px;">
         <div class="section-content">
-            <div class="tabs">
-                <!-- يتم تعبئة التبويبات تلقائياً بواسطة notifications.js حسب الصلاحية -->
-            </div>
-
-            <div id="notificationsTab" class="tab-content">
-                <h3>التنبيهات الواردة</h3>
-                <div id="notificationsList" class="complaints-list"></div>
-            </div>
-
-            <div id="complaintsTab" class="tab-content">
-                <h3>الشكاوى الواردة</h3>
-                <div id="complaintsList" class="complaints-list"></div>
-            </div>
-
+            <div class="tabs"></div>
+            <div id="notificationsTab" class="tab-content"><h3>التنبيهات الواردة</h3><div id="notificationsList" class="complaints-list"></div></div>
+            <div id="complaintsTab" class="tab-content"><h3>الشكاوى الواردة</h3><div id="complaintsList" class="complaints-list"></div></div>
+            <div id="alertsTab" class="tab-content"><h3>الإشعارات الخاصة بي</h3><div id="alertsList" class="complaints-list"></div></div>
             <div id="newTab" class="tab-content">
                 <h3>إرسال تنبيه / شكوى</h3>
                 <form id="complaintForm">
-                    <div class="form-group">
-                        <label>النوع</label>
-                        <select id="complaintType" required>
-                            <option value="notification">تنبيه</option>
-                            <option value="complaint">شكوى</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label>الرسالة</label>
-                        <textarea id="complaintMessage" required rows="5"></textarea>
-                    </div>
+                    <div class="form-group"><label>النوع</label><select id="complaintType" required><option value="notification">تنبيه</option><option value="complaint">شكوى</option></select></div>
+                    <div class="form-group"><label>الرسالة</label><textarea id="complaintMessage" required rows="5"></textarea></div>
                     <button type="submit" class="btn btn-primary">إرسال</button>
                 </form>
             </div>
-
-            <div id="myMessagesTab" class="tab-content">
-                <h3>رسائلي المرسلة</h3>
-                <div id="myMessagesList" class="complaints-list"></div>
-            </div>
+            <div id="myMessagesTab" class="tab-content"><h3>رسائلي المرسلة</h3><div id="myMessagesList" class="complaints-list"></div></div>
         </div>
     </div>
-
     <script src="js/utils.js"></script>
     <script src="js/auth.js"></script>
     <script src="js/api.js"></script>

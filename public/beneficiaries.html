@@ -30,15 +30,19 @@
                             <th>الاسم</th>
                             <th>الرقم الوطني</th>
                             <th>أفراد الأسرة</th>
-                            <th>رقم الوظيفي</th>
+                            <th>رقم الهوية</th>
                             <th>الهاتف</th>
                             <th>العنوان</th>
                             <th>عدد أفراد الأسرة</th>
                             <th>الحالة الصحية</th>
                             <th>الجنس</th>
+                            <th>الولاية</th>
+                            <th>المدينة</th>
+                            <th>المنطقة</th>
                             <th>تاريخ التسجيل</th>
                             <th>إجراءات</th>
-                        </thead>
+                        </tr>
+                    </thead>
                     <tbody id="beneficiariesBody"></tbody>
                 </table>
             </div>
@@ -56,25 +60,39 @@
                     <input type="text" id="benName" required>
                 </div>
                 <div class="form-group">
-                    <label>رقم الوظيفي</label>
+                    <label>رقم الهوية</label>
                     <input type="text" id="benIdNumber" required>
                 </div>
                 <div class="form-group">
-                    <label>الرقم الوطني</label>
-                    <input type="text" id="benNationalId">
+                    <label>الرقم الوطني (11 رقم)</label>
+                    <input type="text" id="benNationalId" pattern="[0-9]{11}" title="11 رقم">
                 </div>
                 <div class="form-group">
-                    <label>رقم الهاتف</label>
-                    <input type="tel" id="benPhone" required>
+                    <label>رقم الهاتف (10 أرقام)</label>
+                    <input type="tel" id="benPhone" required pattern="[0-9]{10}" title="10 أرقام">
                 </div>
                 <div class="form-group">
-                    <label>العنوان</label>
+                    <label>العنوان التفصيلي</label>
                     <input type="text" id="benAddress">
                 </div>
                 <div class="form-row">
                     <div class="form-group">
+                        <label>الولاية</label>
+                        <input type="text" id="benState">
+                    </div>
+                    <div class="form-group">
+                        <label>المدينة</label>
+                        <input type="text" id="benCity">
+                    </div>
+                    <div class="form-group">
+                        <label>المنطقة</label>
+                        <input type="text" id="benDistrict">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
                         <label>عدد أفراد الأسرة</label>
-                        <input type="number" id="benFamily" value="1">
+                        <input type="number" id="benFamily" min="0" max="20" value="0">
                     </div>
                     <div class="form-group">
                         <label>الحالة الصحية (للمستفيد الرئيسي)</label>
@@ -90,17 +108,10 @@
                 </div>
                 <div class="form-group">
                     <label>أفراد الأسرة (الاسم - الرقم الوطني - الحالة الصحية)</label>
-                    <div id="familyMembersContainer">
-                        <div class="family-member-row">
-                            <input type="text" placeholder="الاسم" class="family-name" style="width: 30%; margin-left: 5px;">
-                            <input type="text" placeholder="الرقم الوطني" class="family-nationalId" style="width: 30%; margin-left: 5px;">
-                            <input type="text" placeholder="الحالة الصحية" class="family-health" style="width: 30%;">
-                            <button type="button" class="btn btn-sm btn-danger remove-family" style="width: 10%;">حذف</button>
-                        </div>
-                    </div>
-                    <button type="button" class="btn btn-sm btn-secondary" onclick="addFamilyMemberRow()">+ إضافة فرد</button>
+                    <div id="familyMembersContainer"></div>
+                    <button type="button" class="btn btn-sm btn-secondary" id="addFamilyMemberBtn">+ إضافة فرد</button>
                 </div>
-                <button type="submit" class="btn btn-primary">إضافة</button>
+                <button type="submit" class="btn btn-primary">حفظ</button>
             </form>
         </div>
     </div>

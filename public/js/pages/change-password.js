@@ -1,11 +1,7 @@
-// js/pages/change-password.js
-
 function showChangePasswordModal() {
-    // إزالة أي نافذة سابقة
     const existing = document.getElementById('changePasswordModal');
     if (existing) existing.remove();
 
-    // إنشاء النافذة المنبثقة
     const modal = document.createElement('div');
     modal.id = 'changePasswordModal';
     modal.className = 'modal';
@@ -21,11 +17,11 @@ function showChangePasswordModal() {
                 </div>
                 <div class="form-group">
                     <label>كلمة المرور الجديدة</label>
-                    <input type="password" id="newPassword" required minlength="6">
+                    <input type="password" id="newPassword" required minlength="8">
                 </div>
                 <div class="form-group">
                     <label>تأكيد كلمة المرور الجديدة</label>
-                    <input type="password" id="confirmNewPassword" required minlength="6">
+                    <input type="password" id="confirmNewPassword" required minlength="8">
                 </div>
                 <button type="submit" class="btn btn-primary">تغيير كلمة المرور</button>
             </form>
@@ -33,13 +29,11 @@ function showChangePasswordModal() {
     `;
     document.body.appendChild(modal);
 
-    // التعامل مع submit
     document.getElementById('changePasswordForm').addEventListener('submit', async (e) => {
         e.preventDefault();
         const oldPass = document.getElementById('oldPassword').value;
         const newPass = document.getElementById('newPassword').value;
         const confirm = document.getElementById('confirmNewPassword').value;
-
         if (newPass !== confirm) {
             alert('كلمتا المرور الجديدتين غير متطابقتين');
             return;
@@ -48,7 +42,7 @@ function showChangePasswordModal() {
             const result = await changePassword(oldPass, newPass);
             alert(result.message);
             closeChangePasswordModal();
-        } catch (error) {
+        } catch(error) {
             alert(error.message);
         }
     });
@@ -59,6 +53,5 @@ function closeChangePasswordModal() {
     if (modal) modal.remove();
 }
 
-// جعل الدوال عامة
 window.showChangePasswordModal = showChangePasswordModal;
 window.closeChangePasswordModal = closeChangePasswordModal;

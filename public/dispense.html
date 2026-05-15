@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>صرف المساعدات - الهلال الأحمر</title>
+    <link rel="stylesheet" href="css/styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <header class="dashboard-header">
+        <div class="header-left">
+            <button class="back-btn" onclick="history.back()"><i class="fas fa-arrow-right"></i></button>
+            <div class="logo-small"><div class="crescent"></div></div>
+            <h2>صرف المساعدات</h2>
+        </div>
+        <div class="header-right"><span id="userName">...</span></div>
+    </header>
+    <div class="container" style="margin-top:80px;">
+        <div class="section-content" style="max-width:600px;margin:0 auto;">
+            <div class="form-group">
+                <label><i class="fas fa-search"></i> بحث عن طلب معتمد وطباعة إشعاره</label>
+                <div style="display: flex; gap: 10px;">
+                    <input type="number" id="printRequestNumber" placeholder="أدخل رقم الطلب (4 أرقام)" style="flex:1;">
+                    <button class="btn btn-secondary" onclick="printReceiptForRequest()"><i class="fas fa-print"></i> طباعة الإشعار</button>
+                </div>
+            </div>
+            <hr>
+            <form id="dispenseForm">
+                <div class="form-group"><label><i class="fas fa-hashtag"></i> رقم الطلب (المكون من 4 أرقام)</label><input type="number" id="requestNumber" required placeholder="أدخل رقم الطلب المعتمد"></div>
+                <div class="form-group"><label><i class="fas fa-box"></i> الصنف</label><select id="itemId" required><option value="">اختر الصنف...</option></select></div>
+                <div class="form-group"><label><i class="fas fa-sort-numeric-up"></i> الكمية</label><input type="number" id="quantity" value="1" min="1" required></div>
+                <button type="submit" class="btn btn-primary btn-block">صرف</button>
+            </form>
+            <div id="requestInfo" style="margin-top:20px;"></div>
+        </div>
+    </div>
+    <script src="js/utils.js"></script>
+    <script src="js/auth.js"></script>
+    <script src="js/api.js"></script>
+    <script>
+        const user = requireAuth(['manager', 'inventory_keeper']);
+        updateUserDisplay();
+        initFloatingBell();
+
+        let inventoryItems = [];
+
+        async function loadInventory() {
+            try {
+                const token = localStorage.getItem('token');
+                const res = await fetch('/api/inventory/available', { headers: { 'Authorization': `Bearer ${token}` } });
+                inventoryItems = await res.json();
+                const select = document.getElementById('itemId');
+                select.innerHTML = '<option value="">اختر الصنف...</option>';
+                inventoryItems.forEach(item => {
+                    if (item.available_quantity > 0) {
+                        select.innerHTML += `<option value="${item.id}">${item.itemName} (متاح: ${item.available_quantity})</option>`;
+                    }
+                });
+            } catch(e) { alert(e.message); }
+        }
+
+        document.getElementById('requestNumber').addEventListener('change', async function() {
+            const requestNumber = this.value;
+            if (!requestNumber) return;
+            try {
+                const token = localStorage.getItem('token');
+                const res = await fetch(`/api/assistance-requests?requestNumber=${requestNumber}`, { headers: { 'Authorization': `Bearer ${token}` } });
+                // نحتاج مسار خاص بالرقم، لكن سنستخدم الاستعلام العام
+                const all = await getAssistanceRequests();
+                const req = all.find(r => r.request_number == requestNumber);
+                if (!req) throw new Error('لا يوجد طلب بهذا الرقم');
+                if (req.status !== 'approved') throw new Error('الطلب غير معتمد بعد');
+                document.getElementById('requestInfo').innerHTML = `
+                    <div class="alert alert-info">
+                        <strong>المستفيد:</strong> ${req.beneficiaryName}<br>
+                        <strong>النوع:</strong> ${req.requestType}<br>
+                        <strong>الكمية المطلوبة:</strong> ${req.quantity || 1}<br>
+                        <strong>الحالة:</strong> ${req.status}<br>
+                        <strong>رقم الطلب:</strong> ${req.request_number}
+                    </div>`;
+                // محاولة تحديد الصنف المناسب حسب التصنيف
+                const categoryMap = { food: 'food', medical: 'medical', shelter: 'shelter', other: 'other' };
+                const cat = categoryMap[req.requestType] || 'other';
+                const suitableItem = inventoryItems.find(i => i.category === cat && i.available_quantity >= req.quantity);
+                if (suitableItem) {
+                    document.getElementById('itemId').value = suitableItem.id;
+                    document.getElementById('quantity').value = req.quantity;
+                }
+            } catch(e) { alert(e.message); }
+        });
+
+        document.getElementById('dispenseForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const requestNumber = parseInt(document.getElementById('requestNumber').value);
+            const itemId = parseInt(document.getElementById('itemId').value);
+            const quantity = parseInt(document.getElementById('quantity').value);
+            // نحتاج إرسال requestId وليس requestNumber. سنحصل على id من الرقم.
+            const all = await getAssistanceRequests();
+            const req = all.find(r => r.request_number == requestNumber);
+            if (!req) return alert('الطلب غير موجود');
+            const data = { requestId: req.id, itemId, quantity };
+            try {
+                const token = localStorage.getItem('token');
+                const res = await fetch('/api/dispense', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                    body: JSON.stringify(data)
+                });
+                const result = await res.json();
+                if (!res.ok) throw new Error(result.error);
+                alert('تم الصرف بنجاح');
+                document.getElementById('dispenseForm').reset();
+                document.getElementById('requestInfo').innerHTML = '';
+                loadInventory();
+            } catch(e) { alert(e.message); }
+        });
+
+        async function printReceiptForRequest() {
+            const requestNumber = document.getElementById('printRequestNumber').value;
+            if (!requestNumber) return alert('أدخل رقم الطلب');
+            try {
+                const token = localStorage.getItem('token');
+                const res = await fetch(`/api/receipt-by-request/${requestNumber}`, { headers: { 'Authorization': `Bearer ${token}` } });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.error);
+                window.open(data.receiptUrl, '_blank');
+            } catch(e) { alert(e.message); }
+        }
+
+        loadInventory();
+    </script>
+</body>
+</html>

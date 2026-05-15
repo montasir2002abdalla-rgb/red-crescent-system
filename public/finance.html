@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>الدعم المالي - الهلال الأحمر</title>
+    <title>التبرعات - الهلال الأحمر</title>
     <link rel="stylesheet" href="css/styles.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
@@ -12,7 +12,7 @@
         <div class="header-left">
             <button class="back-btn" onclick="history.back()"><i class="fas fa-arrow-right"></i></button>
             <div class="logo-small"><div class="crescent"></div></div>
-            <h2>تقديم تبرع مالي</h2>
+            <h2>تقديم تبرع</h2>
         </div>
         <div class="header-center"></div>
         <div class="header-right">
@@ -20,44 +20,87 @@
         </div>
     </header>
 
-    <div class="container" style="margin-top: 20px;">
-        <div class="section-content" style="max-width: 600px; margin: 0 auto;">
-            <h3>بيانات التبرع</h3>
-            <form id="donationForm">
-                <div class="form-group">
-                    <label>المبلغ (جنيه)</label>
-                    <input type="number" id="amount" min="1" required>
-                </div>
-                <div class="form-group">
-                    <label>طريقة الدفع</label>
-                    <select id="paymentMethod" required onchange="showPaymentDetails()">
-                        <option value="">اختر طريقة الدفع</option>
-                        <option value="bank">تحويل بنكي (بنكك 3030105)</option>
-                        <option value="fawry">فوري (6602420)</option>
-                        <option value="cash">نقداً (تسليم للمقر)</option>
-                    </select>
-                </div>
-                <div id="bankDetails" style="display: none; background: #f0f0f0; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
-                    <p><strong>بيانات الحساب البنكي:</strong></p>
-                    <p>بنكك: 3030105<br>اسم الحساب: جمعية الهلال الأحمر</p>
-                </div>
-                <div id="fawryDetails" style="display: none; background: #f0f0f0; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
-                    <p><strong>رقم فوري:</strong> 6602420<br>اسم المستفيد: جمعية الهلال الأحمر</p>
-                </div>
-                <div class="form-group">
-                    <label>رقم العملية (اخر اربعة ارقام )</label>
-                    <input type="text" id="transactionId"  placeholder="أدخل رقم العملية ">
-                </div>
-                <button type="submit" class="btn btn-primary btn-block">تقديم التبرع</button>
-            </form>
+    <div class="container" style="margin-top: 80px;">
+        <div class="section-content" style="max-width: 700px; margin: 0 auto;">
+            <div class="tabs">
+                <button class="tab active" onclick="showTab('financial')">تبرع مالي</button>
+                <button class="tab" onclick="showTab('inkind')">تبرع عيني (مواد)</button>
+            </div>
+
+            <!-- تبرع مالي -->
+            <div id="financialTab" class="tab-content active">
+                <h3>بيانات التبرع المالي</h3>
+                <form id="donationForm">
+                    <div class="form-group">
+                        <label>المبلغ (جنيه)</label>
+                        <input type="number" id="amount" min="1" required>
+                    </div>
+                    <div class="form-group">
+                        <label>طريقة الدفع</label>
+                        <select id="paymentMethod" required onchange="showPaymentDetails()">
+                            <option value="">اختر طريقة الدفع</option>
+                            <option value="bank">تحويل بنكي (بنكك 3030105)</option>
+                            <option value="fawry">فوري (6602420)</option>
+                            <option value="cash">نقداً (تسليم للمقر)</option>
+                        </select>
+                    </div>
+                    <div id="bankDetails" style="display:none; background:#f0f0f0; padding:15px; border-radius:8px; margin-bottom:20px;">
+                        <p><strong>بيانات الحساب البنكي:</strong><br>بنكك: 3030105<br>اسم الحساب: جمعية الهلال الأحمر</p>
+                    </div>
+                    <div id="fawryDetails" style="display:none; background:#f0f0f0; padding:15px; border-radius:8px; margin-bottom:20px;">
+                        <p><strong>رقم فوري:</strong> 6602420<br>اسم المستفيد: جمعية الهلال الأحمر</p>
+                    </div>
+                    <div class="form-group">
+                        <label>رقم العملية (اخر 4 أرقام)</label>
+                        <input type="text" id="transactionId" placeholder="أدخل رقم العملية">
+                    </div>
+                    <button type="submit" class="btn btn-primary btn-block">تقديم التبرع</button>
+                </form>
+            </div>
+
+            <!-- تبرع عيني -->
+            <div id="inkindTab" class="tab-content">
+                <h3>تبرع بمواد عينية</h3>
+                <form id="inkindForm">
+                    <div class="form-group">
+                        <label>اسم المادة</label>
+                        <input type="text" id="inkindItemName" required placeholder="مثلاً: أرز، دواء، بطاطين...">
+                    </div>
+                    <div class="form-group">
+                        <label>التصنيف</label>
+                        <select id="inkindCategory" required>
+                            <option value="food">غذائية</option>
+                            <option value="medical">طبية</option>
+                            <option value="shelter">إيواء</option>
+                            <option value="other">أخرى</option>
+                        </select>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>الكمية</label>
+                            <input type="number" id="inkindQuantity" min="1" value="1" required>
+                        </div>
+                        <div class="form-group">
+                            <label>الوحدة</label>
+                            <input type="text" id="inkindUnit" placeholder="كيس/كرتون/علبة" required>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>وصف إضافي (اختياري)</label>
+                        <textarea id="inkindDescription" rows="2"></textarea>
+                    </div>
+                    <button type="submit" class="btn btn-primary btn-block">تقديم التبرع العيني</button>
+                </form>
+            </div>
+
             <hr>
-            <h4>تبرعاتي السابقة</h4>
+            <h4>سجل تبرعاتي</h4>
             <table class="data-table" id="myDonationsTable">
                 <thead>
                     <tr>
-                        <th>المبلغ</th>
-                        <th>طريقة الدفع</th>
-                        <th>الحالة</th>
+                        <th>النوع</th>
+                        <th>المبلغ/الكمية</th>
+                        <th>التفاصيل</th>
                         <th>التاريخ</th>
                     </tr>
                 </thead>
@@ -69,6 +112,86 @@
     <script src="js/utils.js"></script>
     <script src="js/auth.js"></script>
     <script src="js/api.js"></script>
-    <script src="js/pages/finance.js"></script>
+    <script>
+        const user = requireAuth('donor');
+        updateUserDisplay();
+
+        function showTab(tab) {
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+            if (tab === 'financial') {
+                document.querySelector('[onclick="showTab(\'financial\')"]').classList.add('active');
+                document.getElementById('financialTab').classList.add('active');
+            } else {
+                document.querySelector('[onclick="showTab(\'inkind\')"]').classList.add('active');
+                document.getElementById('inkindTab').classList.add('active');
+            }
+        }
+
+        function showPaymentDetails() {
+            const method = document.getElementById('paymentMethod').value;
+            document.getElementById('bankDetails').style.display = method === 'bank' ? 'block' : 'none';
+            document.getElementById('fawryDetails').style.display = method === 'fawry' ? 'block' : 'none';
+        }
+
+        document.getElementById('donationForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const donation = {
+                amount: parseFloat(document.getElementById('amount').value),
+                paymentMethod: document.getElementById('paymentMethod').value,
+                transactionId: document.getElementById('transactionId').value
+            };
+            try {
+                await createDonation(donation);
+                alert('تم تسجيل تبرعك المالي، شكراً لك!');
+                document.getElementById('donationForm').reset();
+                loadMyDonations();
+            } catch (error) { alert(error.message); }
+        });
+
+        document.getElementById('inkindForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const inkind = {
+                itemName: document.getElementById('inkindItemName').value,
+                category: document.getElementById('inkindCategory').value,
+                quantity: parseInt(document.getElementById('inkindQuantity').value),
+                unit: document.getElementById('inkindUnit').value,
+                description: document.getElementById('inkindDescription').value
+            };
+            try {
+                await createInkindDonation(inkind);
+                alert('تم تسجيل تبرعك العيني وإضافته للمخزون، شكراً لك!');
+                document.getElementById('inkindForm').reset();
+                loadMyDonations();
+            } catch (error) { alert(error.message); }
+        });
+
+        async function loadMyDonations() {
+            try {
+                const donations = await getDonations(); // تجلب التبرعات المالية والعينية معاً للمانح
+                const tbody = document.getElementById('myDonationsBody');
+                tbody.innerHTML = donations.map(d => {
+                    if (d.donationType === 'financial') {
+                        return `<tr>
+                            <td>مالي</td>
+                            <td>${d.amount}</td>
+                            <td>${d.paymentMethod} (${d.transactionId || '-'})</td>
+                            <td>${new Date(d.createdAt).toLocaleDateString('ar-EG')}</td>
+                        </tr>`;
+                    } else {
+                        // d.amount هنا تمثل الكمية، d.paymentMethod تمثل الوحدة
+                        return `<tr>
+                            <td>عيني</td>
+                            <td>${d.amount} ${d.paymentMethod}</td>
+                            <td>${d.transactionId || ''}</td>
+                            <td>${new Date(d.createdAt).toLocaleDateString('ar-EG')}</td>
+                        </tr>`;
+                    }
+                }).join('') || '<tr><td colspan="4">لا توجد تبرعات</td></tr>';
+            } catch (error) { alert(error.message); }
+        }
+
+        loadMyDonations();
+    </script>
 </body>
 </html>

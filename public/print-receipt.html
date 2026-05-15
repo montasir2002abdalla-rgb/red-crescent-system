@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <title>إشعار استلام مساعدة - الهلال الأحمر</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Cairo', 'Tajawal', sans-serif;
+            background: #eef2f3;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .receipt {
+            max-width: 500px;
+            width: 100%;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+            overflow: hidden;
+            direction: rtl;
+        }
+        .receipt-header {
+            background: #8e2323;
+            color: white;
+            padding: 20px;
+            text-align: center;
+        }
+        .receipt-header .logo {
+            width: 60px;
+            height: 60px;
+            background: white;
+            border-radius: 50%;
+            margin: 0 auto 10px;
+            position: relative;
+        }
+        .receipt-header .logo .crescent {
+            width: 30px;
+            height: 30px;
+            background: #8e2323;
+            border-radius: 50%;
+            position: absolute;
+            top: 15px;
+            right: 15px;
+        }
+        .receipt-header h2 {
+            font-size: 1.4rem;
+            margin: 5px 0;
+        }
+        .receipt-body {
+            padding: 20px;
+        }
+        .info-row {
+            display: flex;
+            justify-content: space-between;
+            border-bottom: 1px dashed #ccc;
+            padding: 12px 0;
+            font-size: 1rem;
+        }
+        .info-row strong {
+            color: #2c3e50;
+        }
+        .request-number {
+            background: #f0f7ff;
+            padding: 12px;
+            border-radius: 12px;
+            text-align: center;
+            margin: 20px 0;
+            border: 2px solid #0288d1;
+        }
+        .request-number span {
+            font-size: 1.8rem;
+            font-weight: bold;
+            color: #0288d1;
+            letter-spacing: 2px;
+        }
+        .qr-placeholder {
+            text-align: center;
+            margin: 20px 0;
+            font-size: 0.8rem;
+            color: #666;
+        }
+        .footer {
+            background: #f8f9fa;
+            padding: 15px;
+            text-align: center;
+            font-size: 0.8rem;
+            border-top: 1px solid #ddd;
+        }
+        @media print {
+            body { background: white; padding: 0; }
+            .no-print { display: none; }
+            .receipt { box-shadow: none; margin: 0; }
+        }
+        .btn-print {
+            display: block;
+            width: 90%;
+            margin: 15px auto;
+            background: #0288d1;
+            color: white;
+            border: none;
+            padding: 12px;
+            border-radius: 40px;
+            font-size: 1rem;
+            font-weight: bold;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+<div class="receipt" id="receipt">
+    <div class="receipt-header">
+        <div class="logo"><div class="crescent"></div></div>
+        <h2>جمعية الهلال الأحمر</h2>
+        <p>إشعار استلام مساعدة</p>
+    </div>
+    <div class="receipt-body">
+        <div class="info-row"><strong>رقم الإشعار:</strong> <span id="receiptNo">-</span></div>
+        <div class="info-row"><strong>تاريخ الصرف:</strong> <span id="date">-</span></div>
+        <div class="info-row"><strong>اسم المستفيد:</strong> <span id="beneficiaryName">-</span></div>
+        <div class="info-row"><strong>رقم الطلب:</strong> <span id="requestId">-</span></div>
+        <div class="request-number">
+            رقم الطلب المرجعي:<br>
+            <span id="requestNumberDisplay">-</span>
+        </div>
+        <div class="info-row"><strong>نوع المساعدة:</strong> <span id="type">-</span></div>
+        <div class="info-row"><strong>التفاصيل:</strong> <span id="details">-</span></div>
+        <div class="qr-placeholder">يُطلب من أمين المخزن التحقق من رقم الطلب قبل الصرف</div>
+    </div>
+    <div class="footer">
+        هذا الإشعار صالح لمرة واحدة. يرجى التوجه به إلى أمين المخزن.
+    </div>
+    <button class="btn-print no-print" onclick="window.print()">🖨️ طباعة الإشعار</button>
+</div>
+<script>
+    const params = new URLSearchParams(window.location.search);
+    document.getElementById('receiptNo').innerText = params.get('id') || Math.floor(Math.random()*10000);
+    document.getElementById('date').innerText = new Date().toLocaleDateString('ar-EG');
+    document.getElementById('beneficiaryName').innerText = params.get('name') || 'غير محدد';
+    document.getElementById('requestId').innerText = params.get('requestId') || '-';
+    document.getElementById('requestNumberDisplay').innerText = params.get('requestId') || '-';
+    document.getElementById('type').innerText = params.get('type') || 'مساعدة';
+    document.getElementById('details').innerHTML = params.get('details') || '-';
+</script>
+</body>
+</html>

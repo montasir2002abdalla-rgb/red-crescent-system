@@ -1,8 +1,8 @@
 const user = requireAuth();
 updateUserDisplay();
+initFloatingBell();
 
 let currentBeneficiaryId = null;
-
 async function getBeneficiaryIdFromUser() {
     if (user.role === 'beneficiary') {
         const beneficiaries = await getBeneficiaries();
@@ -16,60 +16,22 @@ async function loadRequests() {
         const requests = await getAssistanceRequests();
         const tbody = document.getElementById('requestsBody');
         if (!tbody) return;
-
         let filtered = requests;
         if (user.role === 'beneficiary') {
-            if (!currentBeneficiaryId) {
-                await getBeneficiaryIdFromUser();
-            }
+            if (!currentBeneficiaryId) await getBeneficiaryIdFromUser();
             filtered = requests.filter(r => r.beneficiaryId === currentBeneficiaryId);
         }
-
         tbody.innerHTML = filtered.map(r => `
             <tr>
                 <td data-label="المستفيد">${r.beneficiaryName || 'غير معروف'}</td>
+                <td data-label="رقم الطلب">${r.request_number || '—'}</td>
                 <td data-label="نوع الطلب">${r.requestType}</td>
-                <td data-label="الوصف">${r.description.substring(0, 50)}...</td>
-                <td data-label="الحالة"><span class="status ${r.status}">${r.status === 'pending' ? 'معلق' : r.status === 'in_progress' ? 'قيد التنفيذ' : r.status === 'completed' ? 'مكتمل' : 'مرفوض'}</span></td>
+                <td data-label="الوصف">${r.description.substring(0,50)}...</td>
+                <td data-label="الحالة"><span class="status ${r.status}">${r.status === 'pending' ? 'معلق' : r.status === 'approved' ? 'معتمد' : r.status === 'completed' ? 'مكتمل' : 'مرفوض'}</span></td>
                 <td data-label="التاريخ">${new Date(r.createdAt).toLocaleDateString('ar-EG')}</td>
-                <td data-label="إجراءات">
-                    ${(user.role === 'manager' || user.role === 'employee') ? `
-                        <select onchange="updateRequestStatus(${r.id}, this.value)" class="status-select">
-                            <option value="pending" ${r.status === 'pending' ? 'selected' : ''}>معلق</option>
-                            <option value="in_progress" ${r.status === 'in_progress' ? 'selected' : ''}>قيد التنفيذ</option>
-                            <option value="completed" ${r.status === 'completed' ? 'selected' : ''}>مكتمل</option>
-                            <option value="rejected" ${r.status === 'rejected' ? 'selected' : ''}>مرفوض</option>
-                        </select>
-                    ` : ''}
-                    ${(user.role === 'manager') ? `
-                        <button class="btn btn-danger btn-sm" onclick="deleteRequest(${r.id})"><i class="fas fa-trash"></i></button>
-                    ` : ''}
-                </td>
             </tr>
         `).join('');
-    } catch (error) {
-        alert(error.message);
-    }
-}
-
-async function updateRequestStatus(id, status) {
-    try {
-        await updateAssistanceRequestStatus(id, status);
-        loadRequests();
-    } catch (error) {
-        alert(error.message);
-    }
-}
-
-async function deleteRequest(id) {
-    if (confirm('هل أنت متأكد من حذف هذا الطلب؟')) {
-        try {
-            await deleteAssistanceRequest(id);
-            loadRequests();
-        } catch (error) {
-            alert(error.message);
-        }
-    }
+    } catch(e) { alert(e.message); }
 }
 
 async function loadBeneficiariesForSelect() {
@@ -78,58 +40,53 @@ async function loadBeneficiariesForSelect() {
         const select = document.getElementById('requestBeneficiaryId');
         if (!select) return;
         select.innerHTML = '<option value="">اختر...</option>';
-        beneficiaries.forEach(b => {
-            const opt = document.createElement('option');
-            opt.value = b.id;
-            opt.textContent = `${b.name} (${b.idNumber})`;
-            select.appendChild(opt);
-        });
-    } catch (error) {
-        alert(error.message);
-    }
+        beneficiaries.forEach(b => { select.innerHTML += `<option value="${b.id}">${b.name} (${b.idNumber})</option>`; });
+    } catch(e) { alert(e.message); }
 }
 
 function showAddRequestModal() {
-    if (user.role === 'beneficiary') {
-        document.getElementById('beneficiarySelectGroup').style.display = 'none';
-    } else {
-        document.getElementById('beneficiarySelectGroup').style.display = 'block';
-        loadBeneficiariesForSelect();
-    }
+    if (user.role === 'beneficiary') document.getElementById('beneficiarySelectGroup').style.display = 'none';
+    else { document.getElementById('beneficiarySelectGroup').style.display = 'block'; loadBeneficiariesForSelect(); }
     document.getElementById('addRequestModal').style.display = 'flex';
 }
 
-function closeModal() {
-    document.getElementById('addRequestModal').style.display = 'none';
-}
+function closeModal() { document.getElementById('addRequestModal').style.display = 'none'; }
 
 document.getElementById('addRequestForm')?.addEventListener('submit', async (e) => {
     e.preventDefault();
     let beneficiaryId;
     if (user.role === 'beneficiary') {
-        if (!currentBeneficiaryId) {
-            alert('لم يتم العثور على معرف المستفيد. يرجى التواصل مع الإدارة.');
-            return;
-        }
+        if (!currentBeneficiaryId) { alert('لم يتم العثور على معرف المستفيد'); return; }
         beneficiaryId = currentBeneficiaryId;
     } else {
         beneficiaryId = document.getElementById('requestBeneficiaryId').value;
-        if (!beneficiaryId) {
-            alert('الرجاء اختيار مستفيد');
-            return;
-        }
+        if (!beneficiaryId) { alert('الرجاء اختيار مستفيد'); return; }
     }
-    const request = {
-        beneficiaryId: parseInt(beneficiaryId),
-        requestType: document.getElementById('requestType').value,
-        description: document.getElementById('requestDescription').value
-    };
-    try {
-        await createAssistanceRequest(request);
-        closeModal();
-        loadRequests();
-    } catch (error) {
-        alert(error.message);
+    const requestType = document.getElementById('requestType').value;
+    const description = document.getElementById('requestDescription').value;
+    
+    if (requestType !== 'financial') {
+        const categoryMap = { food: 'food', medical: 'medical', shelter: 'shelter', other: 'other' };
+        const category = categoryMap[requestType] || 'other';
+        try {
+            const available = await getAvailableInventory();
+            const categoryItem = available.find(i => i.category === category && i.available_quantity > 0);
+            if (!categoryItem) { alert(`نعتذر، لا يوجد مخزون متاح حالياً للمساعدات من نوع ${requestType}.`); return; }
+            const qty = prompt(`يتوفر ${categoryItem.available_quantity} من "${categoryItem.itemName}". كم تريد طلب؟ (الحد الأقصى ${categoryItem.available_quantity})`, "1");
+            if (!qty || parseInt(qty) <= 0) return;
+            const finalQty = Math.min(parseInt(qty), categoryItem.available_quantity);
+            const result = await createAssistanceRequest({ beneficiaryId, requestType, description, quantity: finalQty });
+            alert(result.message);
+            closeModal();
+            loadRequests();
+        } catch(e) { alert(e.message); }
+    } else {
+        try {
+            const result = await createAssistanceRequest({ beneficiaryId, requestType, description, quantity: 1 });
+            alert(result.message);
+            closeModal();
+            loadRequests();
+        } catch(e) { alert(e.message); }
     }
 });
 

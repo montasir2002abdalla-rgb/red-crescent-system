@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>طلبات المساعدة المالية - الهلال الأحمر</title>
+    <link rel="stylesheet" href="css/styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <header class="dashboard-header">
+        <div class="header-left">
+            <button class="back-btn" onclick="history.back()"><i class="fas fa-arrow-right"></i></button>
+            <div class="logo-small"><div class="crescent"></div></div>
+            <h2>طلبات المساعدة المالية (قيد المراجعة)</h2>
+        </div>
+        <div class="header-right"><span id="userName">...</span></div>
+    </header>
+    <div class="container" style="margin-top:80px;">
+        <div class="section-content">
+            <div class="alert alert-warning"><i class="fas fa-exclamation-triangle"></i> الطلبات المالية تحتاج موافقتك.</div>
+            <div style="overflow-x:auto;">
+                <table class="data-table">
+                    <thead><tr><th>المستفيد</th><th>الوصف</th><th>رقم الطلب</th><th>المبلغ المطلوب</th><th>التاريخ</th><th>إجراءات</th></tr></thead>
+                    <tbody id="financialRequestsBody"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    <script src="js/utils.js"></script>
+    <script src="js/auth.js"></script>
+    <script src="js/api.js"></script>
+    <script>
+        const user = requireAuth('manager');
+        updateUserDisplay();
+        initFloatingBell();
+
+        async function loadFinancialRequests() {
+            try {
+                const token = localStorage.getItem('token');
+                const res = await fetch('/api/assistance-requests/financial-pending', { headers: { 'Authorization': `Bearer ${token}` } });
+                const requests = await res.json();
+                document.getElementById('financialRequestsBody').innerHTML = requests.map(r => `
+                    <tr>
+                        <td>${r.beneficiaryName || ''}</td>
+                        <td>${r.description}</td>
+                        <td>${r.request_number || '—'}</td>
+                        <td><input type="number" id="amount_${r.id}" value="${r.amount || 0}" min="1" style="width:100px;"></td>
+                        <td>${new Date(r.createdAt).toLocaleDateString('ar-EG')}</td>
+                        <td>
+                            <button class="btn btn-success btn-sm" onclick="approveFinancial(${r.id})">موافقة</button>
+                            <button class="btn btn-danger btn-sm" onclick="rejectFinancial(${r.id})">رفض</button>
+                        </td>
+                    </tr>
+                `).join('');
+            } catch(e) { alert(e.message); }
+        }
+
+        window.approveFinancial = async (id) => {
+            const amount = parseFloat(document.getElementById('amount_'+id)?.value || 0);
+            try {
+                const token = localStorage.getItem('token');
+                const res = await fetch(`/api/assistance-requests/${id}/approve-financial`, {
+                    method: 'PUT', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                    body: JSON.stringify({ amount })
+                });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.error);
+                alert('تمت الموافقة وإرسال إشعار قابل للطباعة');
+                loadFinancialRequests();
+            } catch(e) { alert(e.message); }
+        };
+
+        window.rejectFinancial = async (id) => {
+            try {
+                const token = localStorage.getItem('token');
+                const res = await fetch(`/api/assistance-requests/${id}/reject`, { method: 'PUT', headers: { 'Authorization': `Bearer ${token}` } });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.error);
+                alert('تم الرفض');
+                loadFinancialRequests();
+            } catch(e) { alert(e.message); }
+        };
+
+        loadFinancialRequests();
+    </script>
+</body>
+</html>

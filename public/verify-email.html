@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>تأكيد البريد الإلكتروني - الهلال الأحمر</title>
+    <link rel="stylesheet" href="css/styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        .verification-container {
+            max-width: 500px;
+            margin: 100px auto;
+            text-align: center;
+        }
+        .code-input {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            margin: 30px 0;
+        }
+        .code-input input {
+            width: 60px;
+            height: 70px;
+            text-align: center;
+            font-size: 28px;
+            font-weight: bold;
+            border: 2px solid var(--sky-300);
+            border-radius: 12px;
+            background: white;
+        }
+        .code-input input:focus {
+            border-color: var(--sky-600);
+            outline: none;
+            box-shadow: 0 0 0 3px rgba(3,169,244,0.2);
+        }
+        .timer {
+            color: var(--warning);
+            margin: 15px 0;
+        }
+        .resend-link {
+            color: var(--sky-600);
+            cursor: pointer;
+            text-decoration: underline;
+        }
+        .success-icon {
+            font-size: 60px;
+            color: var(--success);
+            margin-bottom: 20px;
+        }
+        .error-icon {
+            font-size: 60px;
+            color: var(--danger);
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="top-bar">
+        <div class="logo-container">
+            <div class="logo"><div class="crescent"></div></div>
+            <h1>جمعية الهلال الأحمر</h1>
+        </div>
+    </div>
+
+    <div class="main-container">
+        <div class="form-container verification-container">
+            <div id="verificationView">
+                <i class="fas fa-envelope-open-text" style="font-size: 50px; color: var(--sky-600); margin-bottom: 20px;"></i>
+                <h2>تأكيد البريد الإلكتروني</h2>
+                <p>قمنا بإرسال رمز التحقق إلى بريدك الإلكتروني.</p>
+                <p id="emailDisplay" style="color: var(--sky-700); font-weight: bold;"></p>
+                
+                <div class="code-input" id="codeInputs">
+                    <input type="text" maxlength="1" class="code-digit" data-index="0">
+                    <input type="text" maxlength="1" class="code-digit" data-index="1">
+                    <input type="text" maxlength="1" class="code-digit" data-index="2">
+                    <input type="text" maxlength="1" class="code-digit" data-index="3">
+                    <input type="text" maxlength="1" class="code-digit" data-index="4">
+                    <input type="text" maxlength="1" class="code-digit" data-index="5">
+                </div>
+                
+                <div class="timer" id="timer">يمكنك إعادة إرسال الرمز بعد <span id="countdown">60</span> ثانية</div>
+                <a id="resendLink" class="resend-link" onclick="resendCode()" style="display: none;">إعادة إرسال رمز التحقق</a>
+                
+                <button class="btn btn-primary" onclick="verifyCode()" style="margin-top: 20px;">تحقق</button>
+                <button class="btn btn-secondary" onclick="window.location.href='index.html'" style="margin-top: 10px;">رجوع</button>
+            </div>
+            
+            <div id="successView" style="display: none;">
+                <div class="success-icon"><i class="fas fa-check-circle"></i></div>
+                <h2>تم التأكيد بنجاح!</h2>
+                <p>تم تأكيد بريدك الإلكتروني. يمكنك الآن تسجيل الدخول إلى حسابك.</p>
+                <button class="btn btn-primary" onclick="window.location.href='index.html'" style="margin-top: 20px;">تسجيل الدخول</button>
+            </div>
+            
+            <div id="errorView" style="display: none;">
+                <div class="error-icon"><i class="fas fa-times-circle"></i></div>
+                <h2>فشل التحقق</h2>
+                <p id="errorMessage"></p>
+                <button class="btn btn-primary" onclick="location.reload()">إعادة المحاولة</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const urlParams = new URLSearchParams(window.location.search);
+        let email = urlParams.get('email');
+        
+        if (email) {
+            document.getElementById('emailDisplay').innerText = email;
+            localStorage.setItem('pendingVerificationEmail', email);
+        } else {
+            const storedEmail = localStorage.getItem('pendingVerificationEmail');
+            if (storedEmail) {
+                document.getElementById('emailDisplay').innerText = storedEmail;
+                email = storedEmail;
+            } else {
+                document.getElementById('emailDisplay').innerText = 'بريدك الإلكتروني';
+            }
+        }
+        
+        // التنقل بين حقول رمز التحقق
+        const inputs = document.querySelectorAll('.code-digit');
+        inputs.forEach((input, index) => {
+            input.addEventListener('keyup', (e) => {
+                if (e.key >= '0' && e.key <= '9') {
+                    if (index < inputs.length - 1) {
+                        inputs[index + 1].focus();
+                    }
+                } else if (e.key === 'Backspace') {
+                    if (index > 0) {
+                        inputs[index - 1].focus();
+                    }
+                }
+            });
+            
+            input.addEventListener('paste', (e) => {
+                e.preventDefault();
+                const paste = (e.clipboardData || window.clipboardData).getData('text');
+                if (paste && paste.length === 6 && /^\d+$/.test(paste)) {
+                    for (let i = 0; i < 6; i++) {
+                        inputs[i].value = paste[i];
+                    }
+                    inputs[5].focus();
+                }
+            });
+        });
+        
+        // مؤقت إعادة الإرسال
+        let countdown = 60;
+        const timerElement = document.getElementById('countdown');
+        const resendLink = document.getElementById('resendLink');
+        
+        const interval = setInterval(() => {
+            countdown--;
+            if (timerElement) timerElement.innerText = countdown;
+            if (countdown <= 0) {
+                clearInterval(interval);
+                document.getElementById('timer').style.display = 'none';
+                resendLink.style.display = 'inline-block';
+            }
+        }, 1000);
+        
+        async function verifyCode() {
+            let code = '';
+            inputs.forEach(input => {
+                code += input.value;
+            });
+            
+            if (code.length !== 6) {
+                alert('الرجاء إدخال رمز التحقق المكون من 6 أرقام');
+                return;
+            }
+            
+            const verifyEmail = email || localStorage.getItem('pendingVerificationEmail');
+            if (!verifyEmail) {
+                alert('البريد الإلكتروني مطلوب');
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/verify-email', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email: verifyEmail, code: code })
+                });
+                
+                const result = await response.json();
+                
+                if (response.ok) {
+                    document.getElementById('verificationView').style.display = 'none';
+                    document.getElementById('successView').style.display = 'block';
+                    localStorage.removeItem('pendingVerificationEmail');
+                } else {
+                    document.getElementById('errorMessage').innerText = result.error;
+                    document.getElementById('verificationView').style.display = 'none';
+                    document.getElementById('errorView').style.display = 'block';
+                }
+            } catch (error) {
+                document.getElementById('errorMessage').innerText = 'حدث خطأ في الاتصال بالخادم';
+                document.getElementById('verificationView').style.display = 'none';
+                document.getElementById('errorView').style.display = 'block';
+            }
+        }
+        
+        async function resendCode() {
+            const resendEmail = email || localStorage.getItem('pendingVerificationEmail');
+            if (!resendEmail) {
+                alert('البريد الإلكتروني مطلوب');
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/resend-verification', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email: resendEmail })
+                });
+                
+                const result = await response.json();
+                
+                if (response.ok) {
+                    alert('تم إعادة إرسال رمز التحقق إلى بريدك الإلكتروني');
+                    countdown = 60;
+                    document.getElementById('timer').style.display = 'block';
+                    resendLink.style.display = 'none';
+                    
+                    const newInterval = setInterval(() => {
+                        countdown--;
+                        if (timerElement) timerElement.innerText = countdown;
+                        if (countdown <= 0) {
+                            clearInterval(newInterval);
+                            document.getElementById('timer').style.display = 'none';
+                            resendLink.style.display = 'inline-block';
+                        }
+                    }, 1000);
+                } else {
+                    alert(result.error);
+                }
+            } catch (error) {
+                alert('حدث خطأ في الاتصال بالخادم');
+            }
+        }
+        
+        window.verifyCode = verifyCode;
+        window.resendCode = resendCode;
+    </script>
+</body>
+</html>

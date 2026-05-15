@@ -23,11 +23,11 @@
     <div class="container" style="margin-top: 40px;">
         <div class="section-content">
             <div class="report-filters">
-                <input type="text" id="searchDonations" placeholder="بحث باسم المتبرع...">
-                <select id="filterStatus">
+                <input type="text" id="searchDonations" placeholder="بحث باسم المتبرع أو الصنف...">
+                <select id="filterType">
                     <option value="all">جميع التبرعات</option>
-                    <option value="pending">معلقة</option>
-                    <option value="completed">مكتملة</option>
+                    <option value="financial">مالية</option>
+                    <option value="inkind">عينية</option>
                 </select>
                 <button class="btn btn-primary" onclick="printReport()">طباعة</button>
             </div>
@@ -35,10 +35,10 @@
                 <table class="data-table" id="donationsReportTable">
                     <thead>
                         <tr>
-                            <th>رقم</th>
+                            <th>النوع</th>
                             <th>المتبرع</th>
-                            <th>المبلغ</th>
-                            <th>طريقة الدفع</th>
+                            <th>المبلغ / الكمية</th>
+                            <th>التفاصيل</th>
                             <th>الحالة</th>
                             <th>التاريخ</th>
                         </thead>
@@ -54,12 +54,69 @@
     <script>
         const user = requireAuth(['manager', 'inventory_keeper']);
         updateUserDisplay();
+        initFloatingBell();
 
-        let allDonations = [];
+        let allDonations = []; // سيحتوي على التبرعات المالية والعينية معاً
 
         async function loadDonationsReport() {
             try {
-                allDonations = await getDonations();
+                // جلب التبرعات المالية
+                const financialRes = await fetch('/api/donations', {
+                    headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+                });
+                const financialData = await financialRes.json();
+                const financialDonations = financialData.map(d => ({
+                    type: 'financial',
+                    donorName: d.donorName,
+                    amount: d.amount,
+                    paymentMethod: d.paymentMethod,
+                    transactionId: d.transactionId,
+                    status: d.status,
+                    createdAt: d.createdAt,
+                    details: `${d.paymentMethod} - ${d.transactionId || 'لا يوجد رقم عملية'}`
+                }));
+
+                // جلب التبرعات العينية (من جدول inkind_donations)
+                const inkindRes = await fetch('/api/inkind-donations', {
+                    headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+                });
+                let inkindDonations = [];
+                if (inkindRes.ok) {
+                    const inkindData = await inkindRes.json();
+                    inkindDonations = inkindData.map(d => ({
+                        type: 'inkind',
+                        donorName: d.donorName,
+                        amount: `${d.quantity} ${d.unit}`,
+                        itemName: d.itemName,
+                        category: d.category,
+                        description: d.description,
+                        status: d.status,
+                        createdAt: d.createdAt,
+                        details: `الصنف: ${d.itemName} (${d.category}) - ${d.description || ''}`
+                    }));
+                } else {
+                    // إذا لم يكن المسار موجوداً، نحاول جلبها من API العام
+                    try {
+                        const allRes = await fetch('/api/donations', {
+                            headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+                        });
+                        const allData = await allRes.json();
+                        // التبرعات العينية تأتي مع donationType === 'inkind'
+                        inkindDonations = allData.filter(d => d.donationType === 'inkind').map(d => ({
+                            type: 'inkind',
+                            donorName: d.donorName,
+                            amount: `${d.amount} ${d.paymentMethod}`,
+                            itemName: d.transactionId,
+                            status: d.status,
+                            createdAt: d.createdAt,
+                            details: d.description || ''
+                        }));
+                    } catch(e) { console.warn('لا يمكن جلب التبرعات العينية', e); }
+                }
+
+                // دمج القائمتين وفرز حسب التاريخ
+                allDonations = [...financialDonations, ...inkindDonations];
+                allDonations.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
                 renderTable(allDonations);
             } catch (error) {
                 alert(error.message);
@@ -68,31 +125,36 @@
 
         function renderTable(donations) {
             const tbody = document.getElementById('donationsReportBody');
-            tbody.innerHTML = donations.map(d => `
-                <tr>
-                    <td data-label="رقم">${d.id}</td>
-                    <td data-label="المتبرع">${d.donorName}</td>
-                    <td data-label="المبلغ">${d.amount}</td>
-                    <td data-label="طريقة الدفع">${d.paymentMethod}</td>
-                    <td data-label="الحالة"><span class="status ${d.status}">${d.status === 'pending' ? 'معلقة' : 'مكتملة'}</span></td>
-                    <td data-label="التاريخ">${new Date(d.createdAt).toLocaleDateString('ar-EG')}</td>
-                </tr>
-            `).join('');
+            tbody.innerHTML = donations.map(d => {
+                let typeText = d.type === 'financial' ? '💰 مالي' : '📦 عيني';
+                let amountText = d.type === 'financial' ? `${d.amount} جنيه` : d.amount;
+                let detailsText = d.type === 'financial' ? d.details : d.details;
+                return `
+                    <tr>
+                        <td data-label="النوع">${typeText}</td>
+                        <td data-label="المتبرع">${d.donorName || '-'}</td>
+                        <td data-label="المبلغ/الكمية">${amountText}</td>
+                        <td data-label="التفاصيل">${detailsText}</td>
+                        <td data-label="الحالة"><span class="status ${d.status}">${d.status === 'pending' ? 'معلقة' : 'مكتملة'}</span></td>
+                        <td data-label="التاريخ">${new Date(d.createdAt).toLocaleDateString('ar-EG')}</td>
+                    </tr>
+                `;
+            }).join('');
         }
 
         function filterDonations() {
             const search = document.getElementById('searchDonations').value.toLowerCase();
-            const statusFilter = document.getElementById('filterStatus').value;
+            const typeFilter = document.getElementById('filterType').value;
             const filtered = allDonations.filter(d => {
-                const matchesSearch = search === '' || d.donorName.toLowerCase().includes(search);
-                const matchesStatus = statusFilter === 'all' || d.status === statusFilter;
-                return matchesSearch && matchesStatus;
+                const matchesSearch = search === '' || (d.donorName && d.donorName.toLowerCase().includes(search)) || (d.itemName && d.itemName.toLowerCase().includes(search));
+                const matchesType = typeFilter === 'all' || d.type === typeFilter;
+                return matchesSearch && matchesType;
             });
             renderTable(filtered);
         }
 
         document.getElementById('searchDonations').addEventListener('input', filterDonations);
-        document.getElementById('filterStatus').addEventListener('change', filterDonations);
+        document.getElementById('filterType').addEventListener('change', filterDonations);
 
         function printReport() {
             window.print();
