@@ -495,33 +495,39 @@ async function initDatabase() {
         console.log('✅ تم إدخال بيانات المخازن الافتراضية');
 
         // ===================== المستخدمون الافتراضيون =====================
-const adminExists = await pool.query(`SELECT id FROM users WHERE employeeId = $1`, ['0001']);
-if (adminExists.rows.length === 0) {
-    await pool.query(`
-        INSERT INTO users (employeeId, name, email, phone, password, role, status, approved, joinDate, gender, email_verified)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
-    `, ['0001', 'مدير النظام', 'admin@redcrescent.org', '0912345678', hashPassword('admin123'), 'manager', 'active', 1, new Date().toISOString().split('T')[0], 'male', 1]);
-    console.log('✅ تم إضافة المستخدم الافتراضي: مدير النظام');
-}
-
-const keeperExists = await pool.query(`SELECT id FROM users WHERE employeeId = $1`, ['0002']);
-if (keeperExists.rows.length === 0) {
-    await pool.query(`
-        INSERT INTO users (employeeId, name, email, phone, password, role, status, approved, joinDate, gender, email_verified)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
-    `, ['0002', 'أمين المخزن', 'keeper@redcrescent.org', '0912345679', hashPassword('keeper123'), 'inventory_keeper', 'active', 1, new Date().toISOString().split('T')[0], 'male', 1]);
-    console.log('✅ تم إضافة المستخدم الافتراضي: أمين المخزن');
-}
-
-// ✅ مهم: تأكيد البريد الإلكتروني للمستخدمين الافتراضيين (حتى لو كانوا موجودين مسبقاً)
-await pool.query(`UPDATE users SET email_verified = 1 WHERE employeeId IN ('0001', '0002')`);
-console.log('✅ تم تأكيد البريد الإلكتروني للمستخدمين الافتراضيين');
-
-        console.log('🎉 تم تهيئة قاعدة البيانات بالكامل بنجاح!');
-    } catch (err) {
-        console.error('❌ خطأ في تهيئة قاعدة البيانات:', err.message);
+// ===================== المستخدمون الافتراضيون =====================
+try {
+    // مدير النظام
+    const adminExists = await pool.query(`SELECT id FROM users WHERE employeeId = $1`, ['0001']);
+    if (adminExists.rows.length === 0) {
+        await pool.query(`
+            INSERT INTO users (employeeId, name, email, phone, password, role, status, approved, joinDate, gender, email_verified)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+        `, ['0001', 'مدير النظام', 'admin@redcrescent.org', '0912345678', hashPassword('admin123'), 'manager', 'active', 1, new Date().toISOString().split('T')[0], 'male', 1]);
+        console.log('✅ تم إضافة المستخدم الافتراضي: مدير النظام');
     }
+
+    // أمين المخزن
+    const keeperExists = await pool.query(`SELECT id FROM users WHERE employeeId = $1`, ['0002']);
+    if (keeperExists.rows.length === 0) {
+        await pool.query(`
+            INSERT INTO users (employeeId, name, email, phone, password, role, status, approved, joinDate, gender, email_verified)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+        `, ['0002', 'أمين المخزن', 'keeper@redcrescent.org', '0912345679', hashPassword('keeper123'), 'inventory_keeper', 'active', 1, new Date().toISOString().split('T')[0], 'male', 1]);
+        console.log('✅ تم إضافة المستخدم الافتراضي: أمين المخزن');
+    }
+
+    // ✅ مهم جداً: تأكيد البريد الإلكتروني للمستخدمين الافتراضيين (حتى لو كانوا موجودين)
+    const updateResult = await pool.query(`UPDATE users SET email_verified = 1 WHERE employeeId IN ('0001', '0002') AND email_verified = 0`);
+    if (updateResult.rowCount > 0) {
+        console.log(`✅ تم تأكيد البريد الإلكتروني لـ ${updateResult.rowCount} مستخدم افتراضي`);
+    } else {
+        console.log('✅ المستخدمون الافتراضيون لديهم بريد مؤكد بالفعل');
+    }
+} catch (err) {
+    console.error('❌ خطأ في إعداد المستخدمين الافتراضيين:', err.message);
 }
+
 
 // ===================== Middleware =====================
 const authenticateToken = (req, res, next) => {
